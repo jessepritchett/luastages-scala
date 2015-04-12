@@ -14,3 +14,4 @@ libraryDependencies ++= Seq(
   "com.novocode" % "junit-interface" % "0.10" % "test"
 )
 
+EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Resource
