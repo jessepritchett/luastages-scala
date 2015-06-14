@@ -4,25 +4,23 @@ import org.junit.Assert
 import org.luaj.vm2._
 import org.luaj.vm2.lib._
 
-object testing {
-  def load(globals: Globals) {
-  }
-}
-
 /** Set of assertion functions and other unit test functionality for Lua
  *
- * @constructor used by LuaJ to import the module
- * @param modname name of the module
- * @param env pointer to the calling Lua environment
-**/
+ */
 class testing extends TwoArgFunction {
   var env: LuaValue = null
 
+  /** LuaJ call override
+   *
+   * @param modname name of the module
+   * @param env pointer to the calling Lua environment
+   */
   override def call(modname: LuaValue, env: LuaValue): LuaValue = {
     this.env = env
 
     val library = LuaValue.tableOf
     library.set("assertEquals", new assertEquals)
+    library.set("assertNotEquals", new assertNotEquals)
     library.set("assertFalse", new assertFalse)
     library.set("assertNotNil", new assertNotNil)
     library.set("assertNil", new assertNil)
@@ -31,29 +29,31 @@ class testing extends TwoArgFunction {
     return library
   }
 
-  /** Asserts equality between two Lua values
+  /* Asserts equality between two Lua values
    *
-   * Note: in Lua, objects are only equal to one another
-   * when they refer to the same object. Objects include: 
+   * Note: in Lua, object references are only equal to one 
+   * another when they refer to the same object.
+   *  
+   * Objects include: 
    *  - tables
    *  - functions
    *  - threads
    *  - full userdata
    *
    * Lua usage:
-   *  - assertEquals("one", "two")
-   *  - assertEquals(2.01, 1.99, 0.2)
-   *  - assertEquals("message", true, "false")
-   *  - assertEquals("message", 1.11, 11, 0.01)
-   *  - t1 = {}; t2 = {}; assertEquals(t1, t2)
-   *  - t1 = {}; t2 = {}; assertEquals("message", t1, t2)
-  **/
+   *  = local testing = require "testing"
+   *  - testing.assertEquals("one", "two")
+   *  - testing.assertEquals(2.1, 1.9, 0.02)
+   *  - testing.assertEquals("message", true, "false")
+   *  - testing.assertEquals("message", 1.11, 11, 0.01)
+   *  - t1 = {}; t2 = {}; testing.assertEquals(t1, t2)
+   *  - t1 = {}; t2 = {}; testing.assertEquals("message", t1, t2)
+   */
   class assertEquals extends VarArgFunction {
     /** LuaJ invoke override 
      *
      *  @param args Lua parameter list
-     *
-    **/
+     */
     override def invoke(args: Varargs): LuaValue = {
       val arg1 = args.arg(1)
       val arg2 = args.arg(2)
@@ -70,7 +70,7 @@ class testing extends TwoArgFunction {
       
       } else if (args.narg == 2) {
         // standard two-value use-case
-        Assert.assertTrue(arg1.eq_b(arg2))
+        assertEquals(null, arg1, arg2)
 
       } else {
 
@@ -83,25 +83,122 @@ class testing extends TwoArgFunction {
             arg4.todouble)
         } else {
           // otherwise, assume (msg, arg1, arg2)
-          Assert.assertTrue(arg1.tojstring, arg2.eq_b(arg3))
+          assertEquals(arg1.tojstring, arg2, arg3)
         }
       }
       
       return LuaValue.NONE
     }
+    
+    def assertEquals(msg: String, arg1: LuaValue, arg2: LuaValue) {
+      if (arg1.`type` != arg2.`type`) {
+        Assert.fail("argument type mismatch: "+arg1.typename+" and "+arg2.typename)
+      }
+      
+      arg1.typename match {
+        case "nil" => // do nothing, as nil always equals nil
+        case "boolean" => Assert.assertEquals(msg, arg1.toboolean, arg2.toboolean) 
+        case "number" => Assert.assertEquals(msg, arg1.todouble, arg2.todouble, 0)
+        case "string" => Assert.assertEquals(msg, arg1.tojstring, arg2.tojstring)
+        case "table" => Assert.assertEquals(msg, arg1, arg2)
+        case "function" => Assert.assertEquals(msg, arg1, arg2)
+        case "userdata" => Assert.assertEquals(msg, arg1, arg2)
+        case "thread" => Assert.assertEquals(msg, arg1, arg2)
+      }
+    }
   }
-
-  /** Asserts that a given value is false
+    
+  
+  /* Asserts inequality between two Lua values
+   *
+   * Note: in Lua, object references are only equal to one 
+   * another when they refer to the same object.
+   *  
+   * Objects include: 
+   *  - tables
+   *  - functions
+   *  - threads
+   *  - full userdata
    *
    * Lua usage:
-   *  - assertFalse(true)
-   *  - assertFalse("message", true)
-  **/
+   *  = local testing = require "testing"
+   *  - testing.assertNotEquals("one", "one")
+   *  - testing.assertNotEquals(2.01, 1.99, 0.2)
+   *  - testing.assertNotEquals("message", true, true)
+   *  - testing.assertNotEquals("message", 1.11, 1.11, 0.1)
+   *  - t1 = {}; t2 = {}; testing.assertEquals(t1, t2)
+   *  - t1 = {}; t2 = {}; testing.assertEquals("message", t1, t2)
+   */
+  class assertNotEquals extends VarArgFunction {
+    /** LuaJ invoke override 
+     *
+     *  @param args Lua parameter list
+     */
+    override def invoke(args: Varargs): LuaValue = {
+      val arg1 = args.arg(1)
+      val arg2 = args.arg(2)
+      val arg3 = args.arg(3)
+      val arg4 = args.arg(4)
+
+      if (args.narg == 0) {
+        // assertEquals() = fail()
+        return new fail().call
+      
+      } else if (args.narg == 1) {
+        // assertNotEquals(singleArg) = assertNil(singleArg)
+        return new assertNil().call(arg1)
+      
+      } else if (args.narg == 2) {
+        // standard two-value use-case
+        assertNotEquals(null, arg1, arg2)
+
+      } else {
+
+        if (arg1.isnumber && arg2.isnumber && arg3.isnumber) {
+          // assume three numbers is delta archetype
+          Assert.assertNotEquals(arg1.todouble, arg2.todouble, arg3.todouble)
+        } else if (arg2.isnumber && arg3.isnumber && arg4.isnumber) {
+          // handle (msg, num1, num2, delta)
+          Assert.assertNotEquals(arg1.tojstring, arg2.todouble, arg3.todouble,
+            arg4.todouble)
+        } else {
+          // otherwise, assume (msg, arg1, arg2)
+          assertNotEquals(arg1.tojstring, arg2, arg3)
+        }
+      }
+      
+      return LuaValue.NONE
+    }
+    
+    def assertNotEquals(msg: String, arg1: LuaValue, arg2: LuaValue) {
+      if (arg1.`type` == arg2.`type`) {
+        arg1.typename match {
+          case "nil" => Assert.assertNotEquals(msg, LuaValue.NIL, LuaValue.NIL)
+          case "boolean" => Assert.assertNotEquals(msg, arg1.toboolean, arg2.toboolean) 
+          case "number" => Assert.assertNotEquals(msg, arg1.todouble, arg2.todouble, 0)
+          case "string" => Assert.assertNotEquals(msg, arg1.tojstring, arg2.tojstring)
+          case "table" => Assert.assertNotEquals(msg, arg1, arg2)
+          case "function" => Assert.assertNotEquals(msg, arg1, arg2)
+          case "userdata" => Assert.assertNotEquals(msg, arg1, arg2)
+          case "thread" => Assert.assertNotEquals(msg, arg1, arg2)
+        }
+      }
+    }
+  }
+
+  
+  /* Asserts that a given value is false
+   *
+   * Lua usage:
+   *  = local testing = require "testing"
+   *  - testing.assertFalse(true)
+   *  - testing.assertFalse("message", true)
+   */
   class assertFalse extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
-    **/
+     */
     override def invoke(args: Varargs): LuaValue = {
       // check for message
       if (args.narg > 1) {
@@ -114,18 +211,19 @@ class testing extends TwoArgFunction {
     }
   }
 
-  /** Asserts that a given value is not nil
+  /* Asserts that a given value is not nil
    *
    * Lua usage:
-   *  - assertNotNil()
-   *  - assertNotNil(nil)
-   *  - assertNotNil("message", nil)
-  **/
+   *  = local testing = require "testing"
+   *  - testing.assertNotNil()
+   *  - testing.assertNotNil(nil)
+   *  - testing.assertNotNil("message", nil)
+   */
   class assertNotNil extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
-    **/
+     */
     override def invoke(args: Varargs): LuaValue = {
       if (args.narg > 1) {
         Assert.assertFalse(args.arg1.tojstring, args.arg(2).isnil)
@@ -137,19 +235,20 @@ class testing extends TwoArgFunction {
     }
   }
 
-  /** Asserts that a given value is nil
+  /* Asserts that a given value is nil
    *
    * Lua usage:
-   *  - assertNil(2.1)
-   *  - assertNil(true)
-   *  - assertNil("test")
-   *  - assertNil("message", "test")
-  **/
+   *  = local testing = require "testing"
+   *  - testing.assertNil(2.1)
+   *  - testing.assertNil(true)
+   *  - testing.assertNil("test")
+   *  - testing.assertNil("message", "test")
+   */
   class assertNil extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
-    **/
+     */
     override def invoke(args: Varargs): LuaValue = {
       if (args.narg > 1) {
         Assert.assertTrue(args.arg1.tojstring, args.arg(2).isnil)
@@ -161,18 +260,19 @@ class testing extends TwoArgFunction {
     }
   }
 
-  /** Asserts that a given value is true
+  /* Asserts that a given value is true
    *
    * Lua usage:
-   *  - assertTrue()
-   *  - assertTrue(false)
-   *  - assertTrue("message", false)
-  **/
+   *  = local testing = require "testing"
+   *  - testing.assertTrue()
+   *  - testing.assertTrue(false)
+   *  - testing.assertTrue("message", false)
+   */
   class assertTrue extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
-    **/
+     */
     override def invoke(args: Varargs): LuaValue = {
       // check for message
       if (args.narg > 1) {
@@ -185,17 +285,18 @@ class testing extends TwoArgFunction {
     }
   }
 
-  /** Fail a test case, as in "assertTrue(false)"
+  /* Fail a test case, as in "assertTrue(false)"
    *
    * Lua usage:
-   *  - fail()
-   *  - fail('message')
-  **/
+   *  = local testing = require "testing"
+   *  - testing.fail()
+   *  - testing.fail('message')
+   */
   class fail extends OneArgFunction {
     /** LuaJ call override
      *
      *  @param arg Lua argument
-    **/
+     */
     override def call(arg: LuaValue): LuaValue = {
       Assert.fail(arg.tojstring)
 

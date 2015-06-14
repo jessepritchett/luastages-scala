@@ -113,7 +113,7 @@ class testingTest {
 
     // test message
     f = () => luaFunc.call(LuaValue.valueOf("testMsg"), 
-      LuaValue.valueOf("test1"), LuaValue.valueOf(12.3))
+      LuaValue.TRUE, LuaValue.FALSE)
     expectFail(f, "testMsg")
   }
 

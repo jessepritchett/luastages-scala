@@ -11,7 +11,7 @@ object stagesTest {
 
   @BeforeClass def standUp {
     globals = JsePlatform.standardGlobals
-    Util.loadLib(globals, new stages)
+    Util.loadLib(globals, new stages("stagesTest"))
     stages = globals.get("require").call("stages")
   }
 
@@ -24,6 +24,6 @@ class stagesTest {
   val stages = stagesTest.stages
 
   @Test def tbd {
-    fail("TBD")
+    // see CoreTest.lua
   }
 }
