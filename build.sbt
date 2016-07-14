@@ -1,17 +1,23 @@
+organization := "com.potrwerkz"
+
 name := "luastages-scala"
 
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.10.3"
+scalaVersion := "2.11.8"
 
 resolvers += "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/"
 
-libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-actor" % "2.+",
-  "org.luaj" % "luaj-jse" % "3.+",
-  "junit" % "junit" % "4.+",
-  "junit" % "junit" % "4.+" % "test",
-  "com.novocode" % "junit-interface" % "0.10" % "test"
-)
-
-EclipseKeys.createSrc := EclipseCreateSrc.Default + EclipseCreateSrc.Resource
+libraryDependencies ++= {
+  val junitVersion = "4.+"
+  val akkaVersion = "2.+"
+  Seq(
+    "org.apache.commons" % "commons-math3" % "3.+",
+    "junit" % "junit" % junitVersion,
+    "junit" % "junit" % junitVersion % "test",
+    "com.novocode" % "junit-interface" % "0.11" % "test",
+    "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+    "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
+    "org.luaj" % "luaj-jse" % "3.+"
+  )
+}

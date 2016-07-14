@@ -6,6 +6,9 @@ An actor model framework for Lua that runs on the JVM, powered by Scala and Akka
  - Install [SBT 0.13+] (http://www.scala-sbt.org/release/tutorial/Setup.html)
  - Run **sbt publishLocal** in clone directory
 
+## Test
+ - Run **sbt test** in clone directory
+
 #### Optional for Eclipse:
  - Install [Scala IDE for Eclipse] (http://scala-ide.org/docs/user/gettingstarted.html)
  - Install [sbteclipse] (https://github.com/typesafehub/sbteclipse/wiki/Installing-sbteclipse)

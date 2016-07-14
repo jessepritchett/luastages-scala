@@ -1,4 +1,4 @@
-package com.potrwerkz.luastages.luaext
+package com.potrwerkz.luastages
 
 import org.luaj.vm2._
 import org.luaj.vm2.lib._
@@ -14,9 +14,10 @@ object Util {
    * @param globals Luaj global environment
    * @param lib Luaj LibFunction library instance to load
    */
-  def loadLib(globals: Globals, lib: LibFunction) {
-    val name = lib.getClass.getSimpleName
+  def loadLib(globals: Globals, lib: LibFunction): LuaValue = {
+    val name = lib.getClass.getSimpleName.replace("$", "")
     val loaded = globals.get("package").get("loaded")
     loaded.set(name, lib.call(LuaValue.valueOf(name), globals))
+    loaded.get(name)
   }
 }

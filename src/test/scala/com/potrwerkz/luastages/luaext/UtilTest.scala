@@ -1,7 +1,8 @@
 package com.potrwerkz.luastages.luaext
 
+import com.potrwerkz.luastages.Util
 import org.junit.Assert._
-import org.junit.{Test, BeforeClass, AfterClass}
+import org.junit.{AfterClass, BeforeClass, Test}
 import org.luaj.vm2._
 import org.luaj.vm2.lib._
 import org.luaj.vm2.lib.jse._
@@ -21,14 +22,14 @@ object UtilTest {
 class UtilTest {
   val globals = UtilTest.globals
 
-  class TestLib extends TwoArgFunction {
+  object TestLib extends TwoArgFunction {
     override def call(modname: LuaValue, env: LuaValue): LuaValue = {
-      return UtilTest.testLib
+      UtilTest.testLib
     }
   }
 
   @Test def testLoadLib {
-    Util.loadLib(globals, new TestLib)
+    Util.loadLib(globals, TestLib)
     assertEquals(globals.get("require").call("TestLib"), UtilTest.testLib)
   }
 }

@@ -1,25 +1,27 @@
-package com.potrwerkz.luastages.luaext
+package com.potrwerkz.luastages
 
-import org.luaj.vm2._
-import org.luaj.vm2.lib._
-import org.luaj.vm2.lib.jse.JsePlatform
-
-import akka.util._
 import akka.actor._
 import akka.pattern._
-import scala.util._
+import akka.util._
+import org.luaj.vm2._
+import org.luaj.vm2.lib._
+
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent._
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
-
-import com.potrwerkz.luastages.Core
+import scala.util._
 
 /** Lua wrapper for Akka actors
  *
 **/
-class stages(name: String) extends TwoArgFunction {
-  var core = new Core(name)
+object stages extends TwoArgFunction {
   implicit val timeout = Timeout(5.seconds)
+
+  /** optional configuration */
+  var config: Option[ActorSystem] = None
+
+  /** look for ActorSystem to be defined in config, else create new ActorSystem */
+  lazy val system = config.getOrElse(ActorSystem())
   
   /** LuaJ call override
    * 
@@ -27,73 +29,86 @@ class stages(name: String) extends TwoArgFunction {
    * @param env pointer to the calling Lua environment
    */
   override def call(modname: LuaValue, env: LuaValue): LuaValue = {
+    // look for 'as' to be defined in the current env; if so, use it
+    config = Option(env.get(LuaActor.ACTOR_SYSTEM_KEY).touserdata.asInstanceOf[ActorSystem])
+
     val library = LuaValue.tableOf
-    library.set("actor", new actor)
-    library.set("spawn", new spawn)
-    library.set("ask", new send(true))
-    library.set("tell", new send(false))
-    library.set("join", new join)
-    library.set("sleep", new sleep)
+    library.set("actor", actor)
+    library.set("spawn", spawn)
+    library.set("ask", send(true))
+    library.set("tell", send(false))
+    library.set("join", join)
+    library.set("sleep", sleep)
     
-    return library
+    library
   }
-  
-    def toLuaFuture(f: Future[LuaValue]): LuaUserdata = {
+
+  /** "global" spawn fuction */
+  def spawn(amt: LuaValue, bhv: LuaValue, name: String) = {
+    name match {
+      case "" => system.actorOf(LuaActor.props(amt, bhv))
+      case _ => system.actorOf(LuaActor.props(amt, bhv), name)
+    }
+  }
+
+  def toLuaFuture(f: Future[LuaValue]): LuaUserdata = {
     // define metatable for Akka Future userdata
     val futureMetatable = LuaValue.tableOf
-    futureMetatable.set("__index", new future(f).call)
-    
+    futureMetatable.set("__index", future(f).call)
+
     val res = LuaValue.userdataOf(f)
-    res.setmetatable(futureMetatable)
-    
-    res
+    res.setmetatable(futureMetatable).asInstanceOf[LuaUserdata]
   }
-  
-  /** Actor class definition
-   *  
-   */
-  class actor extends VarArgFunction {
+
+  /* Actor module definition
+    *
+    */
+  object actor extends VarArgFunction {
     /** LuaJ invoke override
-     *  
-     *  @param args LuaJ argument list
-     */
+      *
+      *  @param args LuaJ argument list
+      */
     override def invoke(args: Varargs): LuaValue = {
-      val actorClass = LuaValue.tableOf
-      actorClass.set("spawn", new spawn)
-      actorClass.set("ask", new send(true))
-      actorClass.set("tell", new send(false))
-      return actorClass
+      val mod = LuaValue.tableOf
+      mod.set("spawn", spawn)
+      mod.set("ask", send(true))
+      mod.set("tell", send(false))
+      mod
     }
   }
   
-  /** Future class definition
+  /* Future module definition
    *  
    */
+  object future {
+    def apply(future: Future[LuaValue]) = new future(future)
+  }
+
   class future(future: Future[LuaValue]) extends ZeroArgFunction {
     /** LuaJ call override
      *
      */
     override def call: LuaValue = {
-      val futureClass = LuaValue.tableOf
-      futureClass.set("result", new result)
-      futureClass.set("ready", new ready)
-      return futureClass
+      val mod = LuaValue.tableOf
+      mod.set("result", result)
+      mod.set("ready", ready)
+      mod
     }
     
-    class result extends ZeroArgFunction {
+    object result extends ZeroArgFunction {
       /** LuaJ call override
        *  
        */
       override def call: LuaValue = {        
         if (future.isCompleted) {
-          return future.value.get.get
+          future.value.get.get
         } else {
-          return Await.result(future, timeout.duration).asInstanceOf[LuaValue]
+          Await.result(future, timeout.duration)
         }
       }
     }
     
-    class ready extends VarArgFunction {
+    object ready extends VarArgFunction {
       /** LuaJ invoke override
        *  
        */
@@ -112,13 +127,13 @@ class stages(name: String) extends TwoArgFunction {
           }
         }
         
-        return LuaValue.NIL
+        LuaValue.NIL
       }
     }
   }
-  
+
   /* Gives life to a new actor
-   *  
+   *
    * @param name name (optional)
    * @param behav actor behavior table (optional)
    * @return actor reference
@@ -129,7 +144,7 @@ class stages(name: String) extends TwoArgFunction {
    *  - a = stages.spawn(behavior)
    *  - a = stages.spawn(behavior, "id")
    */
-  class spawn extends VarArgFunction {
+  object spawn extends VarArgFunction {
     /** LuaJ invoke override
      *  
      *  @param args LuaJ argument list
@@ -155,11 +170,8 @@ class stages(name: String) extends TwoArgFunction {
       
       // spawn the Akka actor, and make it an actor prototype
       val actorMetatable = LuaValue.tableOf
-      actorMetatable.set("__index", new actor().call)
-      val res = LuaValue.userdataOf(core.Spawn(actorMetatable, luaActor, name))
-      res.setmetatable(actorMetatable)
-      
-      return res
+      actorMetatable.set("__index", actor.call)
+      LuaValue.userdataOf(spawn(actorMetatable, luaActor, name)).setmetatable(actorMetatable) // note: returns this
     }
     
   }
@@ -174,6 +186,10 @@ class stages(name: String) extends TwoArgFunction {
    *  - f = stages.send(actorRef, "msg")
    *  - f = stages.send(actorRef, t1{1,2.1,"tiger",t2{}})
    */
+  object send {
+    def apply(ask: Boolean) = new send(ask)
+  }
+
   class send(ask: Boolean) extends VarArgFunction {
     /** LuaJ invoke override
      *  
@@ -186,7 +202,7 @@ class stages(name: String) extends TwoArgFunction {
       val target = arg1.touserdata.asInstanceOf[ActorRef]
       
       if (target == null) {
-        return LuaValue.error("stages.send: target actor ref required")  
+        return LuaValue.error("stages.send: target actor ref required")
       }
       
       // inspect msg argument for futures
@@ -197,10 +213,10 @@ class stages(name: String) extends TwoArgFunction {
         // handle normal message
         if (ask) {
           // capture Akka Future as Lua userdata
-          return toLuaFuture(akka.pattern.ask(target, arg2).mapTo[LuaValue])
+          toLuaFuture(akka.pattern.ask(target, arg2).mapTo[LuaValue])
         } else {
           target ! arg2
-          return LuaValue.NONE
+          LuaValue.NONE
         }
       }
     }
@@ -208,23 +224,21 @@ class stages(name: String) extends TwoArgFunction {
     def continue(target: ActorRef, f: Future[LuaValue]): LuaValue = {
       if (ask) {
         // use flatMap to map the future to the target ActorRef
-        return toLuaFuture(f flatMap {
+        toLuaFuture(f flatMap {
           value => akka.pattern.ask(target, value).mapTo[LuaValue]
         })
       } else {
         // simply pipe the result of the future to the target ActorRef
         f pipeTo target
-        return LuaValue.NONE
+        LuaValue.NONE
       }
-      
-      LuaValue.NONE
     }
   }
   
   /*
    * 
    */
-  class join extends VarArgFunction {
+  object join extends VarArgFunction {
     /** LuaJ invoke override
      *  
      */
@@ -236,16 +250,16 @@ class stages(name: String) extends TwoArgFunction {
       val join = Future.sequence(fList)
       
       // map the join list to a LuaTable, and convert to a Lua future
-      return toLuaFuture(join map { 
+      toLuaFuture(join map {
         value => LuaValue.listOf(value.toArray[LuaValue])
       })
     }
     
     def toAkkaFuture(arg: LuaValue): Future[LuaValue] = {
       if (arg.isuserdata && arg.touserdata.isInstanceOf[Future[Any]]) {
-        return arg.touserdata.asInstanceOf[Future[LuaValue]]
+        arg.touserdata.asInstanceOf[Future[LuaValue]]
       } else {
-        return Future { arg }        
+        Future { arg }
       }
     }
   }
@@ -258,14 +272,14 @@ class stages(name: String) extends TwoArgFunction {
    *  = local stages = require "stages"
    *  - f = stages.sleep(150)
    */
-  class sleep extends OneArgFunction {
+  object sleep extends OneArgFunction {
     /** LuaJ call override
      * 
      * @param arg LuaJ argument
      */
     override def call(arg: LuaValue): LuaValue = {
       Thread sleep arg.tolong
-      return LuaValue.NONE
+      LuaValue.NONE
     }
   }
 

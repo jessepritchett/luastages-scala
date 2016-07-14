@@ -1,18 +1,20 @@
 package com.potrwerkz.luastages.luaext
 
-import org.junit.Assert._
-import org.junit.{Test, BeforeClass, AfterClass}
+import java.io.File
+
+import com.potrwerkz.luastages.{Util, stages, testing}
+import org.junit.{AfterClass, BeforeClass, Test}
 import org.luaj.vm2._
 import org.luaj.vm2.lib.jse._
 
 object stagesTest {
   var globals: Globals = null
-  var stages: LuaValue = null
 
   @BeforeClass def standUp {
     globals = JsePlatform.standardGlobals
-    Util.loadLib(globals, new stages("stagesTest"))
-    stages = globals.get("require").call("stages")
+
+    Util.loadLib(globals, testing)
+    Util.loadLib(globals, stages)
   }
 
   @AfterClass def tearDown {
@@ -20,10 +22,12 @@ object stagesTest {
 }
 
 class stagesTest {
-  val globals = stagesTest.globals
-  val stages = stagesTest.stages
+  import stagesTest.globals
 
-  @Test def tbd {
-    // see CoreTest.lua
+  @Test def allLuaTests {
+    for (file <- new File("src/test/resources/lua").listFiles.filter(_.getName.endsWith(".lua"))) {
+      println("running: "+file.toString)
+      globals.loadfile(file.toString).call
+    }
   }
 }

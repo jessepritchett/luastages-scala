@@ -1,4 +1,4 @@
-package com.potrwerkz.luastages.luaext
+package com.potrwerkz.luastages
 
 import org.junit.Assert
 import org.luaj.vm2._
@@ -7,8 +7,7 @@ import org.luaj.vm2.lib._
 /** Set of assertion functions and other unit test functionality for Lua
  *
  */
-class testing extends TwoArgFunction {
-  var env: LuaValue = null
+object testing extends TwoArgFunction {
 
   /** LuaJ call override
    *
@@ -16,17 +15,15 @@ class testing extends TwoArgFunction {
    * @param env pointer to the calling Lua environment
    */
   override def call(modname: LuaValue, env: LuaValue): LuaValue = {
-    this.env = env
-
     val library = LuaValue.tableOf
-    library.set("assertEquals", new assertEquals)
-    library.set("assertNotEquals", new assertNotEquals)
-    library.set("assertFalse", new assertFalse)
-    library.set("assertNotNil", new assertNotNil)
-    library.set("assertNil", new assertNil)
-    library.set("assertTrue", new assertTrue)
-    library.set("fail", new fail)
-    return library
+    library.set("assertEquals", assertEquals)
+    library.set("assertNotEquals", assertNotEquals)
+    library.set("assertFalse", assertFalse)
+    library.set("assertNotNil", assertNotNil)
+    library.set("assertNil", assertNil)
+    library.set("assertTrue", assertTrue)
+    library.set("fail", fail)
+    library
   }
 
   /* Asserts equality between two Lua values
@@ -49,7 +46,7 @@ class testing extends TwoArgFunction {
    *  - t1 = {}; t2 = {}; testing.assertEquals(t1, t2)
    *  - t1 = {}; t2 = {}; testing.assertEquals("message", t1, t2)
    */
-  class assertEquals extends VarArgFunction {
+  object assertEquals extends VarArgFunction {
     /** LuaJ invoke override 
      *
      *  @param args Lua parameter list
@@ -62,11 +59,11 @@ class testing extends TwoArgFunction {
 
       if (args.narg == 0) {
         // assertEquals() = fail()
-        return new fail().call
+        return fail.call
       
       } else if (args.narg == 1) {
         // assertEquals(singleArg) = assertNotNil(singleArg)
-        return new assertNotNil().call(arg1)
+        return assertNotNil.call(arg1)
       
       } else if (args.narg == 2) {
         // standard two-value use-case
@@ -87,7 +84,7 @@ class testing extends TwoArgFunction {
         }
       }
       
-      return LuaValue.NONE
+      LuaValue.NONE
     }
     
     def assertEquals(msg: String, arg1: LuaValue, arg2: LuaValue) {
@@ -129,7 +126,7 @@ class testing extends TwoArgFunction {
    *  - t1 = {}; t2 = {}; testing.assertEquals(t1, t2)
    *  - t1 = {}; t2 = {}; testing.assertEquals("message", t1, t2)
    */
-  class assertNotEquals extends VarArgFunction {
+  object assertNotEquals extends VarArgFunction {
     /** LuaJ invoke override 
      *
      *  @param args Lua parameter list
@@ -142,11 +139,11 @@ class testing extends TwoArgFunction {
 
       if (args.narg == 0) {
         // assertEquals() = fail()
-        return new fail().call
+        return fail.call
       
       } else if (args.narg == 1) {
         // assertNotEquals(singleArg) = assertNil(singleArg)
-        return new assertNil().call(arg1)
+        return assertNil.call(arg1)
       
       } else if (args.narg == 2) {
         // standard two-value use-case
@@ -167,7 +164,7 @@ class testing extends TwoArgFunction {
         }
       }
       
-      return LuaValue.NONE
+      LuaValue.NONE
     }
     
     def assertNotEquals(msg: String, arg1: LuaValue, arg2: LuaValue) {
@@ -194,7 +191,7 @@ class testing extends TwoArgFunction {
    *  - testing.assertFalse(true)
    *  - testing.assertFalse("message", true)
    */
-  class assertFalse extends VarArgFunction {
+  object assertFalse extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
@@ -207,7 +204,7 @@ class testing extends TwoArgFunction {
         Assert.assertFalse(args.arg1.toboolean)
       }
 
-      return LuaValue.NONE
+      LuaValue.NONE
     }
   }
 
@@ -219,7 +216,7 @@ class testing extends TwoArgFunction {
    *  - testing.assertNotNil(nil)
    *  - testing.assertNotNil("message", nil)
    */
-  class assertNotNil extends VarArgFunction {
+  object assertNotNil extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
@@ -231,7 +228,7 @@ class testing extends TwoArgFunction {
         Assert.assertFalse(args.arg1.isnil)
       }
 
-      return LuaValue.NONE
+      LuaValue.NONE
     }
   }
 
@@ -244,7 +241,7 @@ class testing extends TwoArgFunction {
    *  - testing.assertNil("test")
    *  - testing.assertNil("message", "test")
    */
-  class assertNil extends VarArgFunction {
+  object assertNil extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
@@ -256,7 +253,7 @@ class testing extends TwoArgFunction {
         Assert.assertTrue(args.arg1.isnil)
       }
 
-      return LuaValue.NONE
+      LuaValue.NONE
     }
   }
 
@@ -268,7 +265,7 @@ class testing extends TwoArgFunction {
    *  - testing.assertTrue(false)
    *  - testing.assertTrue("message", false)
    */
-  class assertTrue extends VarArgFunction {
+  object assertTrue extends VarArgFunction {
     /** LuaJ invoke override
      *
      *  @param args Lua parameter list
@@ -281,7 +278,7 @@ class testing extends TwoArgFunction {
         Assert.assertTrue(args.arg1.toboolean)
       }
 
-      return LuaValue.NONE
+      LuaValue.NONE
     }
   }
 
@@ -292,7 +289,7 @@ class testing extends TwoArgFunction {
    *  - testing.fail()
    *  - testing.fail('message')
    */
-  class fail extends OneArgFunction {
+  object fail extends OneArgFunction {
     /** LuaJ call override
      *
      *  @param arg Lua argument
@@ -300,8 +297,8 @@ class testing extends TwoArgFunction {
     override def call(arg: LuaValue): LuaValue = {
       Assert.fail(arg.tojstring)
 
-      // this is unreachable, but necessory to compile
-      return LuaValue.NONE
+      // this is unreachable, but necessary to compile
+      LuaValue.NONE
     }
   }
 }

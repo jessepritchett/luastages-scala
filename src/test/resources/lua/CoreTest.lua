@@ -14,7 +14,7 @@ end
 local TestActor = {
   receive = function(self, sender, msg)
     if type(msg) == 'number' then
-     	testing.assertEquals(123, msg)
+      testing.assertEquals(123, msg)
     else
       return string.gsub(msg, '?', '')
     end
@@ -24,7 +24,7 @@ local TestActor = {
 local DelayedActor = {
   receive = function(self, sender, msg)
   	if type(msg) == 'number' then
-  		stages.sleep(msg)
+  	  stages.sleep(msg)
   	end
   	
     return 'done?'
@@ -54,9 +54,9 @@ testing.assertEquals('banana', testRes.result())
 -- test actor future callback
 testRes = testRef:ask('orange?')
 testRes.ready(
-	function(res)
-		testing.assertEquals('orange', res)
-	end
+  function(res)
+    testing.assertEquals('orange', res)
+  end
 )
 
 
@@ -69,7 +69,7 @@ testRef:ask(testDRef:ask(1000)).ready(askTestFunc)
 stages.sleep(100)
 testing.assertEquals(0, count)
 
-stages.sleep(1000)
+stages.sleep(1100)
 testing.assertEquals(1, count)
 
 
